@@ -33,14 +33,13 @@ const handleActiveState = () => {
     const headerText = getContent('h3');
     if (headerText === 'Review') {
       updateReviewData();
-    } else if (updateIntroData() === false) { // If intro content is null
-      updateSpecialCaseContent(); // Check for the special case content
+    } else if (updateIntroData() === false) {
+      updateSpecialCaseContent(); 
     }
   }
   chrome.runtime.sendMessage({ type: "DATA_PACKAGE", payload: dataPackage })
 };
 
-// ... [Rest of your code]
 const updateThirdWindowContent = () => {
   const terminalElem = document.querySelector('.xterm-rows');
   
@@ -104,9 +103,9 @@ const updateIntroData = (): boolean => {
   
   if (dataPackage.introContent) {
     console.log('Intro Content:', dataPackage.introContent);
-    return true; // Successfully fetched the intro content
+    return true;
   } else {
-    return false; // Failed to fetch the intro content
+    return false;
   }
 };
 
