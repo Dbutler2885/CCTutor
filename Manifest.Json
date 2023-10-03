@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "GPTutor",
+  "version": "1.0",
+  "description": "A Chrome extension to integrate GPT with Codecademy",
+  "permissions": ["storage", "tabs", "activeTab"],
+      "host_permissions": [
+         "http://*/*",
+         "https://*/*"
+        ],
+
+  "content_scripts": [
+      {
+          "matches": ["https://www.codecademy.com/courses/*"],
+          "js": ["DIST/contentcc.js"]
+      },
+      {
+          "matches": ["https://chat.openai.com/*"],
+          "js": ["DIST/contentgpt.js"]
+      }
+  ],
+  "background": {
+    "service_worker": "DIST/background.js"
+}
+}
