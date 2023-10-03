@@ -1,4 +1,3 @@
-// Interface to hold the data package
 interface DataPackage {
   textbookContent?: string;
   questionContent?: string;
@@ -13,7 +12,6 @@ interface DataPackage {
 let dataPackage: DataPackage = {};
 
 // --- Content Fetching and Updating Functions ---
-// Modify handleActiveState accordingly
 const handleActiveState = () => {
   console.log("handleActiveState called.");
   

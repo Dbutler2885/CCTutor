@@ -54,9 +54,9 @@ const button = document.createElement('button');
 button.innerText = 'Smart Update';
 button.id = 'smartUpdateButton';
 button.style.position = 'fixed';
-button.style.bottom = '50%'; // Centered vertically
-button.style.right = '5%';  // 5% from the right to place it in the center of the last quarter of the screen.
-button.style.zIndex = '9999'; // Ensure it's above other elements
+button.style.bottom = '50%';
+button.style.right = '5%';  
+button.style.zIndex = '9999';
 button.style.cursor = 'grab';
 document.body.appendChild(button);
 
@@ -93,39 +93,32 @@ window.onmousemove = (e) => {
   if (isDragging) {
     button.style.left = e.clientX - offsetX + 'px';
     button.style.top = e.clientY - offsetY + 'px';
-    button.style.right = 'auto'; // reset the right positioning
-    button.style.bottom = 'auto'; // reset the bottom positioning
-  }
+    button.style.right = 'auto'; 
+    button.style.bottom = 'auto';
 };
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "UPDATED_DATA_PACKAGE") {
-        // Handle the updated dataPackage
+     
         const updatedDataPackage = message.payload;
 
-        // Change Button Label
         if (updatedDataPackage.reviewContent) {
             button.innerText = 'Quiz';
         } else {
             button.innerText = 'Smart Update';
         }
 
-        // Button Click Event
         button.addEventListener('click', () => {
             const promptText = generatePrompt(updatedDataPackage); 
             const inputBox = document.getElementById('prompt-textarea') as HTMLTextAreaElement;
             
-            // Set the value and simulate user interaction
             inputBox.value = promptText;
             
-            // Trigger an 'input' event to simulate user typing
             const inputEvent = new Event('input', { 'bubbles': true, 'cancelable': true });
             inputBox.dispatchEvent(inputEvent);
              
-            // Ensure the textarea is focused
             inputBox.focus();
 
-            // Simulate Enter key press using keydown
             const enterEvent = new KeyboardEvent('keydown', {
                 key: 'Enter',
                 code: 'Enter',
@@ -140,3 +133,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ message: "Updated Data Package processed!" });
     }
 });
+}
