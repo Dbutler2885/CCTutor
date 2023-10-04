@@ -1,141 +1,151 @@
 "use strict";
+//DEBUG Global Variable.
+const DEBUG = true;
+// Constants for DOM selectors
+const SELECTORS = {
+    STYLES_SPACING_TIGHT: '[class*="styles_spacing-tight"]',
+    VIEW_LINES: '.view-lines',
+    STYLES_CHECKPOINT: '[class*="styles_checkpoint__"]',
+    XTERM_ROWS: '.xterm-rows',
+    SPECIAL_CONTENT: 'main[tabindex="0"]'
+};
 let dataPackage = {};
-// --- Content Fetching and Updating Functions ---
-// Modify handleActiveState accordingly
-const handleActiveState = () => {
-    console.log("handleActiveState called.");
-    const activeQuestion = getActiveQuestion();
-    if (activeQuestion) {
-        const activeQuestionIndex = getActiveQuestionIndex(activeQuestion);
-        console.log("Active Question Index:", activeQuestionIndex);
-        if (activeQuestionIndex === 0) {
-            updateFirstQuestionData(activeQuestion);
-        }
-        else {
-            updateQuestionData(activeQuestion);
-        }
-        updateThirdWindowContent();
-    }
-    else {
-        const headerText = getContent('h3');
-        if (headerText === 'Review') {
-            updateReviewData();
-        }
-        else if (updateIntroData() === false) {
-            updateSpecialCaseContent();
-        }
-    }
-    chrome.runtime.sendMessage({ type: "DATA_PACKAGE", payload: dataPackage });
-};
-const updateThirdWindowContent = () => {
-    const terminalElem = document.querySelector('.xterm-rows');
-    if (terminalElem) {
-        dataPackage.terminalContent = getContentRecursively(terminalElem);
-        console.log('Terminal Content:', dataPackage.terminalContent);
+// Log messages if DEBUG is enabled
+const log = (message, data) => {
+    if (DEBUG) {
+        console.log(message, data);
     }
 };
-const updateSpecialCaseContent = () => {
-    console.log("Updating data for the special content section.");
-    dataPackage.specialCaseContent = getContent('main[tabindex="0"]');
-    console.log('Special Content Section:', dataPackage.specialCaseContent);
+// Utility function to update dataPackage and log the change
+const updateAndLogData = (key, value) => {
+    dataPackage[key] = value;
+    log(`${key} Content:`, value);
 };
-const updateFirstQuestionData = (activeQuestion) => {
-    console.log("Updating data for the first question.");
-    updateCommonQuestionData(activeQuestion);
-    dataPackage.textbookContent = getContent('[class*="styles_spacing-tight"]');
-    console.log('Textbook Content:', dataPackage.textbookContent);
-};
-const updateQuestionData = (activeQuestion) => {
-    console.log("Updating data for a question other than the first one.");
-    updateCommonQuestionData(activeQuestion);
-};
-const updateCommonQuestionData = (activeQuestion) => {
-    const contentElement = getContentElement(activeQuestion);
-    if (contentElement !== null) {
-        dataPackage.questionContent = getContentRecursively(contentElement);
-        console.log('Question Content:', dataPackage.questionContent);
-    }
-    dataPackage.codeSnippet = getContent('.view-lines');
-    console.log('Code Snippet:', dataPackage.codeSnippet);
-    dataPackage.thirdWindowContent = getContent('[class*="styles_thirdWindow"]');
-    console.log('Third Window Content:', dataPackage.thirdWindowContent);
-};
-const updateReviewData = () => {
-    console.log("Updating data for the Review section.");
-    dataPackage.reviewContent = getContent('[class*="styles_spacing-tight"]');
-    console.log('Review Content:', dataPackage.reviewContent);
-    dataPackage.codeSnippet = getContent('.view_lines');
-};
-const updateIntroData = () => {
-    console.log("Updating data for the Intro section.");
-    dataPackage.introContent = getContent('[class*="styles_spacing-tight"]');
-    if (dataPackage.introContent) {
-        console.log('Intro Content:', dataPackage.introContent);
-        return true;
-    }
-    else {
-        return false;
-    }
-};
-// --- Helper Functions ---
 const getContentRecursively = (element) => {
     let content = '';
     element.childNodes.forEach(child => {
-        var _a;
         if (child.nodeType === Node.TEXT_NODE) {
             content += child.textContent + '\n';
         }
         else if (child.nodeType === Node.ELEMENT_NODE) {
-            const childElem = child;
-            // Special logging for <p> tags
-            if (childElem.tagName.toLowerCase() === 'p') {
-                content += childElem.textContent + '\n';
-            }
-            // Special handling for <pre> and <code> tags
-            else if (childElem.tagName.toLowerCase() === 'pre' && childElem.querySelector('code')) {
-                const codeContent = ((_a = childElem.querySelector('code')) === null || _a === void 0 ? void 0 : _a.textContent) || '';
-                content += '```\n' + codeContent + '\n```\n';
-            }
-            else {
-                content += getContentRecursively(childElem);
-            }
+            content += handleSpecialTags(child);
         }
     });
     return content.trim();
 };
-const getContent = (targetElement) => {
+const handleSpecialTags = (element) => {
     var _a;
-    const elem = typeof targetElement === "string"
-        ? document.querySelector(targetElement)
-        : targetElement;
-    // For code snippets
-    if (elem && elem.matches('.view-lines')) {
-        let codeLines = [];
-        const lineDivs = elem.querySelectorAll('.view-line');
-        lineDivs.forEach((lineDiv) => {
-            let lineText = '';
-            const spans = lineDiv.querySelectorAll('span');
-            // Only consider the innermost span
-            spans.forEach((span) => {
-                if (!span.querySelector('span')) { // Check if the span contains another span
-                    lineText += span.textContent;
-                }
-            });
-            lineText = lineText.replace(/\u00a0/g, ' '); // Replace non-breaking spaces
-            codeLines.push(lineText);
-        });
-        return codeLines.join('\n').trim();
+    const tagName = element.tagName.toLowerCase();
+    if (tagName === 'p') {
+        return element.textContent + '\n';
     }
-    // For specified class matches, fetch content recursively
-    if (elem && (elem.matches('[class*="styles_spacing-tight"]') || elem.matches('main[tabindex="0"]'))) {
-        return getContentRecursively(elem);
+    else if (tagName === 'pre' && element.querySelector('code')) {
+        const codeContent = ((_a = element.querySelector('code')) === null || _a === void 0 ? void 0 : _a.textContent) || '';
+        return '```\n' + codeContent + '\n```\n';
     }
-    // For other elements, just get the text content
-    return (_a = elem === null || elem === void 0 ? void 0 : elem.textContent) === null || _a === void 0 ? void 0 : _a.trim();
+    else {
+        return getContentRecursively(element);
+    }
 };
-const getContentElement = (activeQuestion) => {
+const getContent = (selector) => {
+    var _a;
+    const elem = document.querySelector(selector);
+    if (!elem) {
+        return undefined;
+    }
+    if (elem.matches(SELECTORS.VIEW_LINES)) {
+        return extractCodeContent(elem);
+    }
+    return (_a = elem.textContent) === null || _a === void 0 ? void 0 : _a.trim();
+};
+const extractCodeContent = (element) => {
+    let codeLines = [];
+    const lineDivs = element.querySelectorAll('.view-line');
+    lineDivs.forEach((lineDiv) => {
+        const lineText = Array.from(lineDiv.querySelectorAll('span'))
+            .filter(span => !span.querySelector('span'))
+            .map(span => span.textContent)
+            .join('')
+            .replace(/\u00a0/g, ' ');
+        codeLines.push(lineText);
+    });
+    return codeLines.join('\n').trim();
+};
+const updateContentBasedOnActiveState = () => {
+    log("Updating based on active state.");
+    const activeQuestion = getActiveQuestion();
+    if (activeQuestion) {
+        updateQuestionContent(activeQuestion);
+    }
+    else {
+        updateContentBasedOnHeaderText();
+    }
+    chrome.runtime.sendMessage({ type: "DATA_PACKAGE", payload: dataPackage });
+};
+const updateTerminalContent = () => {
+    const terminalContent = getContent(SELECTORS.XTERM_ROWS);
+    updateAndLogData('terminalContent', terminalContent);
+};
+const updateContentBasedOnHeaderText = () => {
+    const headerText = getContent('h3');
+    switch (headerText) {
+        case 'Review':
+            updateReviewData();
+            break;
+        case 'Intro':
+            if (!updateIntroData()) {
+                updateSpecialCaseContent();
+            }
+            break;
+        default:
+            updateSpecialCaseContent();
+            break;
+    }
+};
+const updateReviewData = () => {
+    const reviewContent = getContent(SELECTORS.STYLES_SPACING_TIGHT);
+    const codeSnippet = getContent(SELECTORS.VIEW_LINES);
+    updateAndLogData('reviewContent', reviewContent);
+    updateAndLogData('codeSnippet', codeSnippet);
+};
+const updateIntroData = () => {
+    const introContent = getContent(SELECTORS.STYLES_SPACING_TIGHT);
+    updateAndLogData('introContent', introContent);
+    return !!introContent;
+};
+const updateSpecialCaseContent = () => {
+    const specialCaseContent = getContent(SELECTORS.SPECIAL_CONTENT);
+    updateAndLogData('specialCaseContent', specialCaseContent);
+};
+const updateQuestionContent = (activeQuestion) => {
+    const activeQuestionIndex = getActiveQuestionIndex(activeQuestion);
+    log("Active Question Index:", activeQuestionIndex);
+    if (activeQuestionIndex === 0) {
+        updateFirstQuestionData(activeQuestion);
+    }
+    else {
+        updateCommonQuestionData(activeQuestion);
+    }
+};
+const updateFirstQuestionData = (activeQuestion) => {
+    updateCommonQuestionData(activeQuestion);
+    const textbookContent = getContent(SELECTORS.STYLES_SPACING_TIGHT);
+    updateAndLogData('textbookContent', textbookContent);
+};
+const updateCommonQuestionData = (activeQuestion) => {
+    const contentElement = getContentElementFromQuestion(activeQuestion);
+    if (contentElement) {
+        const questionContent = getContentRecursively(contentElement);
+        updateAndLogData('questionContent', questionContent);
+    }
+    const codeSnippet = getContent(SELECTORS.VIEW_LINES);
+    updateAndLogData('codeSnippet', codeSnippet);
+    // Updating terminal content
+    updateTerminalContent();
+};
+const getContentElementFromQuestion = (activeQuestion) => {
     const parentElement = activeQuestion.parentElement;
-    return (parentElement === null || parentElement === void 0 ? void 0 : parentElement.querySelector('[class*="styles_spacing-tight__BpBl3"]')) || null;
+    return (parentElement === null || parentElement === void 0 ? void 0 : parentElement.querySelector(SELECTORS.STYLES_SPACING_TIGHT)) || null;
 };
 const getActiveQuestion = () => {
     var _a;
@@ -145,30 +155,29 @@ const getActiveQuestion = () => {
         const secondPreviousSibling = (_a = parentDiv === null || parentDiv === void 0 ? void 0 : parentDiv.previousElementSibling) === null || _a === void 0 ? void 0 : _a.previousElementSibling;
         return (secondPreviousSibling === null || secondPreviousSibling === void 0 ? void 0 : secondPreviousSibling.firstElementChild) || null;
     }
-    const allQuestions = document.querySelectorAll('[class*="styles_checkpoint__"]');
+    const allQuestions = document.querySelectorAll(SELECTORS.STYLES_CHECKPOINT);
     return allQuestions[allQuestions.length - 1];
 };
 const getActiveQuestionIndex = (activeQuestion) => {
-    const allQuestions = document.querySelectorAll('[class*="styles_checkpoint__"]');
+    const allQuestions = document.querySelectorAll(SELECTORS.STYLES_CHECKPOINT);
     return Array.from(allQuestions).indexOf(activeQuestion);
 };
-// --- Initialization and Event Handling ---
 window.onload = function () {
-    console.log("Page loaded.");
+    log("Page loaded.");
     setTimeout(() => {
         var _a;
-        handleActiveState();
+        updateContentBasedOnActiveState();
         const observer = new MutationObserver((mutationsList) => {
             for (const mutation of mutationsList) {
                 if (mutation.type === 'childList') {
-                    console.log('A child node has been added or removed.');
-                    handleActiveState();
+                    log('A child node has been added or removed.');
+                    updateContentBasedOnActiveState();
                 }
             }
         });
-        const sampleQuestion = document.querySelector('[class*="styles_checkpoint__"]');
+        const sampleQuestion = document.querySelector(SELECTORS.STYLES_CHECKPOINT);
         if ((_a = sampleQuestion === null || sampleQuestion === void 0 ? void 0 : sampleQuestion.parentElement) === null || _a === void 0 ? void 0 : _a.parentElement) {
-            console.log("Setting up MutationObserver.");
+            log("Setting up MutationObserver.");
             const grandParentElement = sampleQuestion.parentElement.parentElement;
             observer.observe(grandParentElement, { childList: true, subtree: true });
         }

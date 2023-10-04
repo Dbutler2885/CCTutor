@@ -2,12 +2,11 @@ interface DataPackage {
     textbookContent?: string;
     questionContent?: string;
     codeSnippet?: string;
-    thirdWindowContent?: string;
     reviewContent?: string;
     introContent?: string;
     specialCaseContent?: string;
     terminalContent?: string;
-  }
+}
   
   interface Message {
     type: string;
