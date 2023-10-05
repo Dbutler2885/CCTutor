@@ -3,11 +3,13 @@ const DEBUG = true;
 
 // Constants for DOM selectors
 const SELECTORS = {
-    STYLES_SPACING_TIGHT: '[class*="styles_spacing-tight"]',
-    VIEW_LINES: '.view-lines',
-    STYLES_CHECKPOINT: '[class*="styles_checkpoint__"]',
-    XTERM_ROWS: '.xterm-rows',
-    SPECIAL_CONTENT: 'main[tabindex="0"]'
+    TEXT: '[class*="styles_spacing-tight"]',
+    CODE: '.view-lines',
+    ALL_QUESTIONS: '[class*="styles_checkpoint__"]',
+    TERMINAL: '.xterm-rows',
+    SPECIAL_CONTENT: 'main[tabindex="0"]',
+    WRONG_ANSWER: '[class*="styles_checkboxUnsatisfied"]',
+    CORRECT_ANSWER: '[class*="styles_checkboxSatisfied"]'
 };
 
 interface DataPackage {
@@ -18,6 +20,7 @@ interface DataPackage {
     introContent?: string;
     specialCaseContent?: string;
     terminalContent?: string;
+    
 }
 
 let dataPackage: DataPackage = {};
@@ -68,7 +71,7 @@ const getContent = (selector: string): string | undefined => {
         return undefined;
     }
 
-    if (elem.matches(SELECTORS.VIEW_LINES)) {
+    if (elem.matches(SELECTORS.CODE)) {
         return extractCodeContent(elem);
     }
 
@@ -93,7 +96,6 @@ const updateContentBasedOnActiveState = () => {
     log("Updating based on active state.");
 
     const activeQuestion = getActiveQuestion();
-
     if (activeQuestion) {
         updateQuestionContent(activeQuestion);
     } else {
@@ -104,36 +106,31 @@ const updateContentBasedOnActiveState = () => {
 };
 
 const updateTerminalContent = () => {
-    const terminalContent = getContent(SELECTORS.XTERM_ROWS);
+    const terminalContent = getContent(SELECTORS.TERMINAL);
     updateAndLogData('terminalContent', terminalContent);
 };
 
 const updateContentBasedOnHeaderText = () => {
     const headerText = getContent('h3');
-    switch (headerText) {
-        case 'Review':
-            updateReviewData();
-            break;
-        case 'Intro':
-            if (!updateIntroData()) {
-                updateSpecialCaseContent();
-            }
-            break;
-        default:
-            updateSpecialCaseContent();
-            break;
+
+    if (headerText === 'Review') {
+        updateReviewData();
+    } else if (getContent(SELECTORS.SPECIAL_CONTENT)) {
+        updateSpecialCaseContent();
+    } else {
+        updateIntroData();
     }
 };
 
 const updateReviewData = () => {
-    const reviewContent = getContent(SELECTORS.STYLES_SPACING_TIGHT);
-    const codeSnippet = getContent(SELECTORS.VIEW_LINES);
+    const reviewContent = getContent(SELECTORS.TEXT);
+    const codeSnippet = getContent(SELECTORS.CODE);
     updateAndLogData('reviewContent', reviewContent);
     updateAndLogData('codeSnippet', codeSnippet);
 };
 
 const updateIntroData = (): boolean => {
-    const introContent = getContent(SELECTORS.STYLES_SPACING_TIGHT);
+    const introContent = getContent(SELECTORS.TEXT);
     updateAndLogData('introContent', introContent);
     return !!introContent;
 };
@@ -156,7 +153,7 @@ const updateQuestionContent = (activeQuestion: HTMLElement) => {
 
 const updateFirstQuestionData = (activeQuestion: HTMLElement) => {
     updateCommonQuestionData(activeQuestion);
-    const textbookContent = getContent(SELECTORS.STYLES_SPACING_TIGHT);
+    const textbookContent = getContent(SELECTORS.TEXT);
     updateAndLogData('textbookContent', textbookContent);
 };
 
@@ -167,7 +164,7 @@ const updateCommonQuestionData = (activeQuestion: HTMLElement) => {
         updateAndLogData('questionContent', questionContent);
     }
 
-    const codeSnippet = getContent(SELECTORS.VIEW_LINES);
+    const codeSnippet = getContent(SELECTORS.CODE);
     updateAndLogData('codeSnippet', codeSnippet);
 
     // Updating terminal content
@@ -176,7 +173,7 @@ const updateCommonQuestionData = (activeQuestion: HTMLElement) => {
 
 const getContentElementFromQuestion = (activeQuestion: HTMLElement): HTMLElement | null => {
     const parentElement = activeQuestion.parentElement;
-    return parentElement?.querySelector(SELECTORS.STYLES_SPACING_TIGHT) || null; 
+    return parentElement?.querySelector(SELECTORS.TEXT) || null; 
 };
 
 const getActiveQuestion = (): HTMLElement | null => {
@@ -188,12 +185,12 @@ const getActiveQuestion = (): HTMLElement | null => {
         return secondPreviousSibling?.firstElementChild as HTMLElement || null;
     }
 
-    const allQuestions = document.querySelectorAll(SELECTORS.STYLES_CHECKPOINT);
+    const allQuestions = document.querySelectorAll(SELECTORS.ALL_QUESTIONS);
     return allQuestions[allQuestions.length - 1] as HTMLElement;
 };
 
 const getActiveQuestionIndex = (activeQuestion: HTMLElement): number => {
-    const allQuestions = document.querySelectorAll(SELECTORS.STYLES_CHECKPOINT);
+    const allQuestions = document.querySelectorAll(SELECTORS.ALL_QUESTIONS);
     return Array.from(allQuestions).indexOf(activeQuestion);
 };
 
@@ -212,7 +209,7 @@ window.onload = function () {
             }
         });
 
-        const sampleQuestion = document.querySelector(SELECTORS.STYLES_CHECKPOINT);
+        const sampleQuestion = document.querySelector(SELECTORS.ALL_QUESTIONS);
 
         if (sampleQuestion?.parentElement?.parentElement) {
             log("Setting up MutationObserver.");
