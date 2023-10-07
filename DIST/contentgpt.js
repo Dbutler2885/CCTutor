@@ -90,8 +90,6 @@ const handleButtonClick = () => {
     console.log("Button clicked!");
     if (currentDataPackage) {
         const promptText = generatePrompt(currentDataPackage);
-        // Reinitialize currentDataPackage after it has been used
-        currentDataPackage = {};
         const inputBox = document.getElementById('prompt-textarea');
         inputBox.value = promptText;
         const inputEvent = new Event('input', { 'bubbles': true, 'cancelable': true });
@@ -110,3 +108,18 @@ const handleButtonClick = () => {
         button.classList.remove('pulsing');
     }
 };
+button.addEventListener('click', handleButtonClick);
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "UPDATED_DATA_PACKAGE") {
+        button.classList.remove('pulsing');
+        currentDataPackage = {}; // Reinitialize to an empty object
+        Object.assign(currentDataPackage, message.payload);
+        if (currentDataPackage && currentDataPackage.reviewContent) {
+            button.innerText = 'Quiz';
+        }
+        else {
+            button.innerText = 'Smart Update';
+        }
+        button.classList.add('pulsing');
+    }
+});
