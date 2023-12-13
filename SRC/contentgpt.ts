@@ -6,26 +6,37 @@ interface DataPackage {
     introContent?: string;
     specialCaseContent?: string;
     terminalContent?: string;
+    hintContent?: string;
 }
 
 function generatePrompt(data: DataPackage): string {
     // Base introduction - always present in every prompt
     const intro = `
     Let's break this down, step-by-step.
-    I need assistance with a lesson from Codecademy.
-    You are not to provide direct answers, but to guide me through the problem-solving process
+    I need assistance with a lesson from Codecademy. In these lessons, Questions are grouped in sets. Each set of questions is introduced
+    by a textbook style review of the concepts covered in the coming problem set. There can be 1 or many questions in these question sets. 
+    Outside of the questions from The Question Set, there are several other bits of data, relevant to the courseware you will be looking at.
+    They are as follows:
+    1.Code snippet: this is a section of code tahtconnects to the question. It may have been modified by the user, in an attempt to answer
+    the question.
+    2.Terminal Content: Some of the course require you to interact with a virtual terminal, this should display error messages as well as 
+    the usual terminal fare.
+    3.Course or topic introduction pages: These pages do not have a question. They are explaining something about the concepts they will
+    introduce to you as you work through the courseware. 
+    4.Review Content: This material doesn't contain questions either and is text going over the material just covered by the
+    previous series of problem sets.
+    I would like help as I try to to understand the concepts required to answer the questions.
+    You are not to provide direct answers to the problem set questions. You are to guide me through the problem-solving process
     by asking simple questions, like "Do you know what the question is asking you to do?".
     Where misunderstanding is discovered, help by asking more relevant questions, and answering direct questions. 
+    It is extremely important to keep your asnwers brief, one to three paragraphs with code blocks if needed. Do not use lists unless
+    in the context of code. Do not use numbered lists or bulleted lists. 
+    Speak in sentences, with sentences grouped in paragraphs interspliced with code blocks. NEVER GIVE ME THE ANSWER TO A QUESTION!!
 `;
 
     // Dynamic sections based on data
     const textbookSection = data.textbookContent 
-        ? `Here is the textbook review content: """${data.textbookContent}""". Ask "Do you have any questions
-        about the review content you want to go over?" then proceed with the rest of the material in this prompt.
-        Do not wait for a response, but also do not proceed to discuss the intro. Finish your response addressing all parts of the previous prompt.
-        Never reprint the review content. If asked about it, answer by rephrasing. When discussing code examples, always
-        reprint code examples.
-        `
+        ? `Here is the textbook review content: """${data.textbookContent}""".`
         : "";
 
     const questionSection = data.questionContent
@@ -50,25 +61,34 @@ function generatePrompt(data: DataPackage): string {
 
     const reviewSection = data.reviewContent
         ? `Here is some review text about the set of problems and concepts I've been working on: """${data.reviewContent}""".
-        generate a 20 point multiple choice Quiz to test my knowledge on this. When I have responded with my answers, grade the quiz,
+        generate a 10 question multiple choice Quiz to test my knowledge on this. When I have responded with my answers, grade the quiz,
         and then offer to explain any concepts covered in the Quesitons I answered incorrectly. Then, lastly, offer to generate
         a small practice project for me to do that illustrates these concepts.`
         : "";
-
+    const hintContent = data.hintContent
+        ? `if you are receiving this it means that I got the question wrong. Here is the content of a mostly unhelpful hint about
+        what I might have gotten wrong, or not done: """${data.hintContent}""" What you can do is interpret the hint, look at my code,
+        refer to the question and possible terminal information and  offer an alternative hint
+        `: "";
     // Conclusion section - always present at the end of the prompt
-    const conclusion = `Thanks for your assistance! Looking forward to your guidance.`;
+    const conclusion = `If you have already responded to messages about codecademy course material, 
+    respond helpfully based on your instructions at the top of the prompt.
+    If this is your first prompt pertaining to Codecademy Courseware, respond to this message
+    with only: "Hey, I see where you are, what do you need help with?`;
 
     // Compile the final prompt
-    const promptText = [intro, textbookSection, questionSection, codeSection, terminalSection, specialCaseSection, introTextSection, reviewSection, conclusion]
+    const promptText = [intro, hintContent, textbookSection, questionSection, codeSection, terminalSection, specialCaseSection, introTextSection, reviewSection, conclusion]
         .filter(Boolean)
         .join("\n\n----------\n\n");
 
     return promptText;
 }
 
+
 // Smart Update Button
+
 const button = document.createElement('button');
-button.innerText = 'Smart Update';
+button.innerText = 'Ask GPTutor';
 button.id = 'smartUpdateButton';
 button.style.position = 'fixed';
 button.style.bottom = '50%';
@@ -87,7 +107,7 @@ style.innerHTML = `
 
   #smartUpdateButton {
     background: linear-gradient(darkgrey, #282538);  // dark grey with a hint of purple
-    color: white;
+    color: grey;
     border: none;
     padding: 10px 20px;
     border-radius: 15px;  // More rounded for a futuristic look
@@ -101,7 +121,7 @@ style.innerHTML = `
   }
 
   #smartUpdateButton.pulsing {
-    animation: pulse 1s infinite;
+    animation: pulse 2s infinite;
   }
 `;
 document.head.appendChild(style);
@@ -146,9 +166,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         Object.assign(currentDataPackage, message.payload);
 
         if (currentDataPackage && currentDataPackage.reviewContent) {
-            button.innerText = 'Quiz';
+            button.innerText = 'Quiz Time!';
         } else {
-            button.innerText = 'Smart Update';
+            button.innerText = 'Ask GPTutor';
         }
 
         button.classList.add('pulsing');

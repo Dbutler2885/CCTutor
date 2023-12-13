@@ -6,6 +6,7 @@ interface DataPackage {
     introContent?: string;
     specialCaseContent?: string;
     terminalContent?: string;
+    hintContent?: string;
 }
   
   interface Message {

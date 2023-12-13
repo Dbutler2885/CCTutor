@@ -1,7 +1,8 @@
 "use strict";
-//DEBUG Global Variable.
+// DEBUG Global Variable.
 const DEBUG = true;
-// Constants for DOM selectors
+let hasProcessedWrongAnswer = false;
+// Constants for DOM selectors.
 const SELECTORS = {
     TEXT: '[class*="styles_spacing-tight"]',
     CODE: '.view-lines',
@@ -9,16 +10,16 @@ const SELECTORS = {
     TERMINAL: '.xterm-rows',
     SPECIAL_CONTENT: 'main[tabindex="0"]',
     WRONG_ANSWER: '[class*="styles_checkboxUnsatisfied"]',
-    CORRECT_ANSWER: '[class*="styles_checkboxSatisfied"]'
+    CORRECT_ANSWERS: '[class*="styles_checkboxSatisfied"]',
+    HINT_CONTENT: '[class*="styles_errorString__"]',
+    DISABLED_CHECKPOINT: '[class*="styles_checkpointDisabled"]'
 };
 let dataPackage = {};
-// Log messages if DEBUG is enabled
 const log = (message, data) => {
     if (DEBUG) {
-        console.log(message, data);
+        console.log("Message:", message, "Data:", data);
     }
 };
-// Utility function to update dataPackage and log the change
 const updateAndLogData = (key, value) => {
     dataPackage[key] = value;
     log(`${key} Content:`, value);
@@ -42,8 +43,7 @@ const handleSpecialTags = (element) => {
         return element.textContent + '\n';
     }
     else if (tagName === 'pre' && element.querySelector('code')) {
-        const codeContent = ((_a = element.querySelector('code')) === null || _a === void 0 ? void 0 : _a.textContent) || '';
-        return '```\n' + codeContent + '\n```\n';
+        return '```\n' + (((_a = element.querySelector('code')) === null || _a === void 0 ? void 0 : _a.textContent) || '') + '\n```\n';
     }
     else {
         return getContentRecursively(element);
@@ -52,18 +52,21 @@ const handleSpecialTags = (element) => {
 const getContent = (selector) => {
     var _a;
     const elem = document.querySelector(selector);
+    log('getContent called for selector:', selector);
     if (!elem) {
         return undefined;
     }
     if (elem.matches(SELECTORS.CODE)) {
+        log('headed to extractCodeContent');
         return extractCodeContent(elem);
     }
-    return (_a = elem.textContent) === null || _a === void 0 ? void 0 : _a.trim();
+    const content = (_a = elem.textContent) === null || _a === void 0 ? void 0 : _a.trim();
+    log('every content', content);
+    return content;
 };
-const extractCodeContent = (element) => {
+const extractCodeContent = (parentElement) => {
     let codeLines = [];
-    const lineDivs = element.querySelectorAll('.view-line');
-    lineDivs.forEach((lineDiv) => {
+    Array.from(parentElement.children).forEach((lineDiv) => {
         const lineText = Array.from(lineDiv.querySelectorAll('span'))
             .filter(span => !span.querySelector('span'))
             .map(span => span.textContent)
@@ -76,27 +79,24 @@ const extractCodeContent = (element) => {
 const updateContentBasedOnActiveState = () => {
     log("Updating based on active state.");
     const activeQuestion = getActiveQuestion();
-    if (activeQuestion) {
-        updateQuestionContent(activeQuestion);
-    }
-    else {
-        updateContentBasedOnHeaderText();
-    }
+    activeQuestion ? updateQuestionContent(activeQuestion) : updateContentBasedOnNonQuestionState();
     chrome.runtime.sendMessage({ type: "DATA_PACKAGE", payload: dataPackage });
 };
 const updateTerminalContent = () => {
     const terminalContent = getContent(SELECTORS.TERMINAL);
     updateAndLogData('terminalContent', terminalContent);
 };
-const updateContentBasedOnHeaderText = () => {
+const updateContentBasedOnNonQuestionState = () => {
     const headerText = getContent('h3');
     if (headerText === 'Review') {
         updateReviewData();
     }
     else if (getContent(SELECTORS.SPECIAL_CONTENT)) {
+        log('updating special case');
         updateSpecialCaseContent();
     }
     else {
+        log('updatingIntrodata');
         updateIntroData();
     }
 };
@@ -106,10 +106,20 @@ const updateReviewData = () => {
     updateAndLogData('reviewContent', reviewContent);
     updateAndLogData('codeSnippet', codeSnippet);
 };
+const updateWrongAnswerData = () => {
+    const wrongAnswerHintElement = document.querySelector(SELECTORS.HINT_CONTENT);
+    if (wrongAnswerHintElement) {
+        const hintContent = getContentRecursively(wrongAnswerHintElement);
+        const activeQuestion = getActiveQuestion();
+        if (activeQuestion) {
+            updateCommonQuestionData(activeQuestion);
+        }
+        updateAndLogData('hintContent', hintContent);
+    }
+};
 const updateIntroData = () => {
     const introContent = getContent(SELECTORS.TEXT);
     updateAndLogData('introContent', introContent);
-    return !!introContent;
 };
 const updateSpecialCaseContent = () => {
     const specialCaseContent = getContent(SELECTORS.SPECIAL_CONTENT);
@@ -118,7 +128,12 @@ const updateSpecialCaseContent = () => {
 const updateQuestionContent = (activeQuestion) => {
     const activeQuestionIndex = getActiveQuestionIndex(activeQuestion);
     log("Active Question Index:", activeQuestionIndex);
-    if (activeQuestionIndex === 0) {
+    const allQuestions = document.querySelectorAll(SELECTORS.ALL_QUESTIONS);
+    const allSatisfied = document.querySelectorAll(SELECTORS.CORRECT_ANSWERS);
+    if (allQuestions.length === allSatisfied.length) {
+        return;
+    }
+    else if (activeQuestionIndex === 0) {
         updateFirstQuestionData(activeQuestion);
     }
     else {
@@ -138,19 +153,20 @@ const updateCommonQuestionData = (activeQuestion) => {
     }
     const codeSnippet = getContent(SELECTORS.CODE);
     updateAndLogData('codeSnippet', codeSnippet);
-    // Updating terminal content
     updateTerminalContent();
 };
 const getContentElementFromQuestion = (activeQuestion) => {
     const parentElement = activeQuestion.parentElement;
+    log('getContentElementFromQuestion', parentElement === null || parentElement === void 0 ? void 0 : parentElement.querySelector(SELECTORS.TEXT));
     return (parentElement === null || parentElement === void 0 ? void 0 : parentElement.querySelector(SELECTORS.TEXT)) || null;
 };
 const getActiveQuestion = () => {
     var _a;
-    const firstDisabledCheckpoint = document.querySelector('[class*="styles_checkpointDisabled"]');
+    const firstDisabledCheckpoint = document.querySelector(SELECTORS.DISABLED_CHECKPOINT);
     if (firstDisabledCheckpoint) {
         const parentDiv = firstDisabledCheckpoint.parentElement;
         const secondPreviousSibling = (_a = parentDiv === null || parentDiv === void 0 ? void 0 : parentDiv.previousElementSibling) === null || _a === void 0 ? void 0 : _a.previousElementSibling;
+        log('activeQuestion', secondPreviousSibling === null || secondPreviousSibling === void 0 ? void 0 : secondPreviousSibling.firstElementChild);
         return (secondPreviousSibling === null || secondPreviousSibling === void 0 ? void 0 : secondPreviousSibling.firstElementChild) || null;
     }
     const allQuestions = document.querySelectorAll(SELECTORS.ALL_QUESTIONS);
@@ -160,24 +176,33 @@ const getActiveQuestionIndex = (activeQuestion) => {
     const allQuestions = document.querySelectorAll(SELECTORS.ALL_QUESTIONS);
     return Array.from(allQuestions).indexOf(activeQuestion);
 };
-window.onload = function () {
+window.addEventListener('load', () => {
     log("Page loaded.");
     setTimeout(() => {
-        var _a;
+        var _a, _b;
         updateContentBasedOnActiveState();
-        const observer = new MutationObserver((mutationsList) => {
-            for (const mutation of mutationsList) {
-                if (mutation.type === 'childList') {
-                    log('A child node has been added or removed.');
-                    updateContentBasedOnActiveState();
-                }
-            }
-        });
+        const observer = new MutationObserver(checkForMutations);
         const sampleQuestion = document.querySelector(SELECTORS.ALL_QUESTIONS);
         if ((_a = sampleQuestion === null || sampleQuestion === void 0 ? void 0 : sampleQuestion.parentElement) === null || _a === void 0 ? void 0 : _a.parentElement) {
-            log("Setting up MutationObserver.");
-            const grandParentElement = sampleQuestion.parentElement.parentElement;
-            observer.observe(grandParentElement, { childList: true, subtree: true });
+            log("Setting up MutationObserver.", (_b = sampleQuestion === null || sampleQuestion === void 0 ? void 0 : sampleQuestion.parentElement) === null || _b === void 0 ? void 0 : _b.parentElement);
+            observer.observe(sampleQuestion.parentElement.parentElement, { childList: true, subtree: true });
         }
     }, 3000);
+});
+const checkForMutations = (mutationsList) => {
+    for (const mutation of mutationsList) {
+        if (mutation.type === 'childList') {
+            log('A child node has been added or removed.');
+            if (document.querySelector(SELECTORS.WRONG_ANSWER)) {
+                updateWrongAnswerData();
+                hasProcessedWrongAnswer = true;
+                // Reset the flag after 1 second
+                setTimeout(() => {
+                    hasProcessedWrongAnswer = false;
+                }, 1000);
+                return;
+            }
+            updateContentBasedOnActiveState();
+        }
+    }
 };
