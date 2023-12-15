@@ -3,8 +3,9 @@ Loading the Chrome Extension:
 -Click on the three dots in the upper right corner to open the menu. Go to > Extensions> Manage Extensions 
 
 -Enable Developer mode by toggling the switch in the top right corner of the Extensions page.
--Click on the Load unpacked button. Navigate to the location where you cloned the repository, open the CCTutor folder, and select the folder that contains the extension's code. Namely the base folder.
+-Click on the Load unpacked button. Navigate to the location where you cloned the repository, or downloaded the zip. Open the CCTutor folder, and select the folder that contains the extension's code. Namely the base folder.
  The extension should now be added to your Chrome and is ready to use.
+
 **To use this extension:**
 Open your Codecademy Course.
 Open a Chatgpt window. You may need to refresh to see the button.  Look for Ask GPTutor button.
